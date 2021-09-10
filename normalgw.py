@@ -32,15 +32,15 @@ type_mapping = {"string": str,
                 "boolean": bool}
 
 
+DEFAULT_NAME_FORMAT_STRING = "{uuid}/device_id:{device_id}/device_name:{device_prop_object_name}/object_name:{prop_object_name}"
+
 class NormalRegister(BaseRegister):
-    def __init__(self, point):
+    def __init__(self, point, nameFormat):
         #     register_type, read_only, pointName, units, description = ''):
         read_only = True
-        pointName = (point.uuid + '/device_id:' +
-                     point.attrs.get('device_id', '') + '/device_name:' + 
-                     point.attrs.get('device_prop_object_name', '') + '/object_name:' +
-                     point.attrs.get('prop_object_name', ''))
-        #point.attrs.get('de')
+        point.attrs['uuid'] = point.uuid
+        pointName = nameFormat.format(**point.attrs)
+        print(pointName)
         units = point.attrs.get("prop_units", "")
 
         # parse the HPL data for writing
@@ -67,6 +67,8 @@ class Interface(BaseInterface):
         self.bacnet_service = config_dict.get("bacnet_service", "localhost:8080")
         self.scrape_window = int(config_dict.get("scrape_window", 300))
         self.default_priority = int(config_dict.get("priority", 14))
+        self.query = config_dict.get("query", "@period:[1, +inf]")
+        self.nameFormat = config_dict.get("topic_name_format", DEFAULT_NAME_FORMAT_STRING)
         self.written_points = set([])
 
         channel = grpc.insecure_channel(self.point_service)
@@ -76,7 +78,7 @@ class Interface(BaseInterface):
         try:
             while offset < total:
                 req = normalgw.hpl.point_pb2.GetPointsRequest(hpl="hpl:bacnet:1",
-                                                              query="@period:[1, +inf]",
+                                                              query=self.query,
                                                               page_size=stride,
                                                               page_offset=offset)
                 points = service.GetPoints(req)
@@ -84,7 +86,7 @@ class Interface(BaseInterface):
                 total = points.total_count
                 print ("Got points batch {}; total is {}".format(len(points.points), total))
                 for p in points.points:
-                    reg = NormalRegister(p)
+                    reg = NormalRegister(p, self.nameFormat)
                     self.insert_register(reg)
         except Exception as e:
             print ("Error loading points: ", e)
