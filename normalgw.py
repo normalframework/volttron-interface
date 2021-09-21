@@ -39,11 +39,15 @@ class NormalRegister(BaseRegister):
         #     register_type, read_only, pointName, units, description = ''):
         read_only = True
         point.attrs['uuid'] = point.uuid
-        pointName = nameFormat.format(**point.attrs)
-        print(pointName)
+        try: 
+            pointName = nameFormat.format(**point.attrs)
+        except Exception as e:
+            print (e)
+            pointName = DEFAULT_NAME_FORMAT_STRING.format(**point.attrs)
         units = point.attrs.get("prop_units", "")
 
         # parse the HPL data for writing
+        self.uuid = point.uuid
         self.bacnet = normalgw.bacnet.scan_pb2.BACnetPoint()
         point.hpldata.Unpack(self.bacnet)
         
@@ -77,6 +81,7 @@ class Interface(BaseInterface):
         offset, stride, total= 0, 100, 1
         try:
             while offset < total:
+                # TODO: rename hpl -> layer when we update the normalgw proto files
                 req = normalgw.hpl.point_pb2.GetPointsRequest(hpl="hpl:bacnet:1",
                                                               query=self.query,
                                                               page_size=stride,
@@ -171,8 +176,8 @@ class Interface(BaseInterface):
         dur = duration_pb2.Duration()
         dur.FromSeconds(self.scrape_window)
 
-        uuid_names = {x[:36]: x for x in self.get_register_names_view()}
-        uuids = list(uuid_names.keys())
+        uuids = [p.uuid for p in self.point_map.values()]
+        uuid_names = {p.uuid: name for (name, p) in self.point_map.items()}
         rv = {}
 
         for i in range(0, len(uuid_names), 100):
