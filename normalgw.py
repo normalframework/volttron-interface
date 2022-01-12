@@ -4,6 +4,8 @@
 
 
 import random
+import threading
+import time
 
 from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
@@ -66,12 +68,23 @@ class Interface(BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
 
+    def _test_loop(self):
+        while True:
+            time.sleep(1)
+            try:
+                val = self.get_point("ANALOG OUTPUT 0")
+            except Exception as e:
+                print (e)
+            else:
+                print (repr(val))
+
     def configure(self, config_dict, registry_config_str):
         self.point_service = config_dict.get("point_service", "localhost:8080")
         self.bacnet_service = config_dict.get("bacnet_service", "localhost:8080")
         self.scrape_window = int(config_dict.get("scrape_window", 300))
         self.default_priority = int(config_dict.get("priority", 14))
         self.query = config_dict.get("query", "@period:[1, +inf]")
+        self.layer = config_dict.get("layer", "hpl:bacnet:1")
         self.nameFormat = config_dict.get("topic_name_format", DEFAULT_NAME_FORMAT_STRING)
         self.written_points = set([])
 
@@ -82,7 +95,7 @@ class Interface(BaseInterface):
         try:
             while offset < total:
                 # TODO: rename hpl -> layer when we update the normalgw proto files
-                req = normalgw.hpl.point_pb2.GetPointsRequest(hpl="hpl:bacnet:1",
+                req = normalgw.hpl.point_pb2.GetPointsRequest(hpl=self.layer,
                                                               query=self.query,
                                                               page_size=stride,
                                                               page_offset=offset)
@@ -98,9 +111,38 @@ class Interface(BaseInterface):
         finally:
             channel.close()
 
+        # threading.Thread(target=self._test_loop).start()
+
     def get_point(self, point_name):
+        """Get Point performs a BACnet ReadProperty in the underlying system
+
+        Note, that NF may combine get_point requests made concurrently
+        to the same device into a ReadPropertyMultiple request.
+
+        You could set request.options.unmergable = True to prevent this.
+        """
         register = self.get_register_by_name(point_name)
-        return register.value
+        if not register:
+            raise RuntimeError(
+                "Point not found: " + point_name)
+
+        channel = grpc.insecure_channel(self.bacnet_service)
+        service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
+        request = normalgw.bacnet.bacnet_pb2.ReadPropertyRequest(**{
+            "device_address": register.bacnet.device_address,
+            "object_id": register.bacnet.property.object_id,
+            "property_id": register.bacnet.property.property_id,
+            "array_index": register.bacnet.property.array_index,
+        })
+        try:
+            resp = service.ReadProperty(request)
+        except:
+            raise
+        finally:
+            channel.close()
+
+        point_type = resp.value.WhichOneof("value")
+        return getattr(resp.value, point_type)
 
     def set_point(self, point_name, value, priority=None):
         """Write to a BACnet point using NF
