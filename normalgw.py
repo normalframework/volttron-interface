@@ -84,7 +84,7 @@ class Interface(BaseInterface):
         self.scrape_window = int(config_dict.get("scrape_window", 300))
         self.default_priority = int(config_dict.get("priority", 14))
         self.query = config_dict.get("query", "@period:[1, +inf]")
-        self.layer = config_dict.get("layer", "hpl:bacnet:1")
+        self.layer = config_dict.get("layer", "")
         self.nameFormat = config_dict.get("topic_name_format", DEFAULT_NAME_FORMAT_STRING)
         self.written_points = set([])
 
