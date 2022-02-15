@@ -32,7 +32,7 @@ type_mapping = {"string": str,
                 "float": float,
                 "bool": bool,
                 "boolean": bool}
-
+GRPC_TIMEOUT = 30
 
 DEFAULT_NAME_FORMAT_STRING = "{uuid}/device_id:{device_id}/device_name:{device_prop_object_name}/object_name:{prop_object_name}"
 
@@ -88,7 +88,7 @@ class Interface(BaseInterface):
         self.nameFormat = config_dict.get("topic_name_format", DEFAULT_NAME_FORMAT_STRING)
         self.written_points = set([])
 
-        channel = grpc.insecure_channel(self.point_service)
+        channel = grpc.insecure_channel(self.point_service, timeout=GRPC_TIMEOUT)
         service = normalgw.hpl.point_pb2_grpc.PointManagerStub(channel)
 
         offset, stride, total= 0, 100, 1
@@ -126,7 +126,7 @@ class Interface(BaseInterface):
             raise RuntimeError(
                 "Point not found: " + point_name)
 
-        channel = grpc.insecure_channel(self.bacnet_service)
+        channel = grpc.insecure_channel(self.bacnet_service, timeout=GRPC_TIMEOUT)
         service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
         request = normalgw.bacnet.bacnet_pb2.ReadPropertyRequest(**{
             "device_address": register.bacnet.device_address,
@@ -179,7 +179,7 @@ class Interface(BaseInterface):
             "priority":(priority or self.default_priority),
             "value": val})
 
-        channel = grpc.insecure_channel(self.bacnet_service)
+        channel = grpc.insecure_channel(self.bacnet_service, timeout=GRPC_TIMEOUT)
         service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
         try:
             resp = service.WriteProperty(request)
@@ -207,7 +207,7 @@ class Interface(BaseInterface):
         initiate a real BACnet write since that is managed by NF, but
         only reads back the latest cached value.
         """
-        channel = grpc.insecure_channel(self.point_service)
+        channel = grpc.insecure_channel(self.point_service, timeout=GRPC_TIMEOUT)
         service = normalgw.hpl.point_pb2_grpc.PointManagerStub(channel)
 
         from_ = timestamp_pb2.Timestamp()
