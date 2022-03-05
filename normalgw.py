@@ -88,7 +88,7 @@ class Interface(BaseInterface):
         self.nameFormat = config_dict.get("topic_name_format", DEFAULT_NAME_FORMAT_STRING)
         self.written_points = set([])
 
-        channel = grpc.insecure_channel(self.point_service, timeout=GRPC_TIMEOUT)
+        channel = grpc.insecure_channel(self.point_service)
         service = normalgw.hpl.point_pb2_grpc.PointManagerStub(channel)
 
         offset, stride, total= 0, 100, 1
@@ -99,7 +99,7 @@ class Interface(BaseInterface):
                                                               query=self.query,
                                                               page_size=stride,
                                                               page_offset=offset)
-                points = service.GetPoints(req)
+                points = service.GetPoints(req, timeout=GRPC_TIMEOUT)
                 offset += len(points.points)
                 total = points.total_count
                 print ("Got points batch {}; total is {}".format(len(points.points), total))
@@ -126,7 +126,7 @@ class Interface(BaseInterface):
             raise RuntimeError(
                 "Point not found: " + point_name)
 
-        channel = grpc.insecure_channel(self.bacnet_service, timeout=GRPC_TIMEOUT)
+        channel = grpc.insecure_channel(self.bacnet_service)
         service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
         request = normalgw.bacnet.bacnet_pb2.ReadPropertyRequest(**{
             "device_address": register.bacnet.device_address,
@@ -135,7 +135,7 @@ class Interface(BaseInterface):
             "array_index": register.bacnet.property.array_index,
         })
         try:
-            resp = service.ReadProperty(request)
+            resp = service.ReadProperty(request, timeout=GRPC_TIMEOUT)
         except:
             raise
         finally:
@@ -179,10 +179,10 @@ class Interface(BaseInterface):
             "priority":(priority or self.default_priority),
             "value": val})
 
-        channel = grpc.insecure_channel(self.bacnet_service, timeout=GRPC_TIMEOUT)
+        channel = grpc.insecure_channel(self.bacnet_service)
         service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
         try:
-            resp = service.WriteProperty(request)
+            resp = service.WriteProperty(request, timeout=GRPC_TIMEOUT)
             if resp.error.WhichOneof("error_type") is not None:
                 raise RuntimeError(
                     "Error writing to register: " + str(resp.error))
@@ -207,7 +207,7 @@ class Interface(BaseInterface):
         initiate a real BACnet write since that is managed by NF, but
         only reads back the latest cached value.
         """
-        channel = grpc.insecure_channel(self.point_service, timeout=GRPC_TIMEOUT)
+        channel = grpc.insecure_channel(self.point_service)
         service = normalgw.hpl.point_pb2_grpc.PointManagerStub(channel)
 
         from_ = timestamp_pb2.Timestamp()
@@ -230,7 +230,7 @@ class Interface(BaseInterface):
                                                                "to": to_,
                                                                "window": dur,
                                                                "method": "LAST"})
-                data = service.GetData(req)
+                data = service.GetData(req, timeout=GRPC_TIMEOUT)
             except Exception as e:
                 print (e)
                 continue
