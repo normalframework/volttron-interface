@@ -19,11 +19,11 @@ from google.protobuf import duration_pb2
 from google.protobuf.json_format import MessageToDict
 import json
 
-import normalgw.hpl.point_pb2
-import normalgw.hpl.point_pb2_grpc
-import normalgw.bacnet.scan_pb2
-import normalgw.bacnet.bacnet_pb2
-import normalgw.bacnet.bacnet_pb2_grpc
+from normalgw.hpl.v1 import point_pb2
+from normalgw.hpl.v1 import point_pb2_grpc
+from normalgw.bacnet.v1 import scan_pb2
+from normalgw.bacnet.v1 import bacnet_pb2
+from normalgw.bacnet.v1 import bacnet_pb2_grpc
 
 _log = logging.getLogger(__name__)
 type_mapping = {"string": str,
@@ -50,7 +50,7 @@ class NormalRegister(BaseRegister):
 
         # parse the HPL data for writing
         self.uuid = point.uuid
-        self.bacnet = normalgw.bacnet.scan_pb2.BACnetPoint()
+        self.bacnet = scan_pb2.BACnetPoint()
         point.hpldata.Unpack(self.bacnet)
         
         # clear the HPL field since we might not have the right types
@@ -89,13 +89,13 @@ class Interface(BaseInterface):
         self.written_points = set([])
 
         channel = grpc.insecure_channel(self.point_service)
-        service = normalgw.hpl.point_pb2_grpc.PointManagerStub(channel)
+        service = point_pb2_grpc.PointManagerStub(channel)
 
         offset, stride, total= 0, 100, 1
         try:
             while offset < total:
                 # TODO: rename hpl -> layer when we update the normalgw proto files
-                req = normalgw.hpl.point_pb2.GetPointsRequest(hpl=self.layer,
+                req = point_pb2.GetPointsRequest(hpl=self.layer,
                                                               query=self.query,
                                                               page_size=stride,
                                                               page_offset=offset)
@@ -127,8 +127,8 @@ class Interface(BaseInterface):
                 "Point not found: " + point_name)
 
         channel = grpc.insecure_channel(self.bacnet_service)
-        service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
-        request = normalgw.bacnet.bacnet_pb2.ReadPropertyRequest(**{
+        service = bacnet_pb2_grpc.BacnetStub(channel)
+        request = bacnet_pb2.ReadPropertyRequest(**{
             "device_address": register.bacnet.device_address,
             "object_id": register.bacnet.property.object_id,
             "property_id": register.bacnet.property.property_id,
@@ -156,7 +156,7 @@ class Interface(BaseInterface):
             raise RuntimeError(
                 "Point not found: " + point_name)
 
-        val = normalgw.bacnet.bacnet_pb2.ApplicationDataValue()
+        val = bacnet_pb2.ApplicationDataValue()
         point_type = register.bacnet.example_value.WhichOneof("value")
         if value == None:
             val.null = True
@@ -173,14 +173,14 @@ class Interface(BaseInterface):
         elif point_type == "character_string":
             val.character_string = str(value)
         
-        request = normalgw.bacnet.bacnet_pb2.WritePropertyRequest(**{
+        request = bacnet_pb2.WritePropertyRequest(**{
             "device_address": register.bacnet.device_address,
             "property": register.bacnet.property,
             "priority":(priority or self.default_priority),
             "value": val})
 
         channel = grpc.insecure_channel(self.bacnet_service)
-        service = normalgw.bacnet.bacnet_pb2_grpc.BacnetStub(channel)
+        service = bacnet_pb2_grpc.BacnetStub(channel)
         try:
             resp = service.WriteProperty(request, timeout=GRPC_TIMEOUT)
             if resp.error.WhichOneof("error_type") is not None:
@@ -208,7 +208,7 @@ class Interface(BaseInterface):
         only reads back the latest cached value.
         """
         channel = grpc.insecure_channel(self.point_service)
-        service = normalgw.hpl.point_pb2_grpc.PointManagerStub(channel)
+        service = point_pb2_grpc.PointManagerStub(channel)
 
         from_ = timestamp_pb2.Timestamp()
         from_.GetCurrentTime()
@@ -224,7 +224,7 @@ class Interface(BaseInterface):
 
         for i in range(0, len(uuid_names), 100):
             try:
-                req = normalgw.hpl.point_pb2.GetDataRequest(**{"layer": "hpl:bacnet:1",
+                req = point_pb2.GetDataRequest(**{"layer": "hpl:bacnet:1",
                                                                "uuids": uuids[i:i+100],
                                                                "from": from_,
                                                                "to": to_,
