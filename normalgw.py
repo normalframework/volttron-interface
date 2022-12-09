@@ -95,7 +95,7 @@ class Interface(BaseInterface):
         try:
             while offset < total:
                 # TODO: rename hpl -> layer when we update the normalgw proto files
-                req = point_pb2.GetPointsRequest(hpl=self.layer,
+                req = point_pb2.GetPointsRequest(layer=self.layer,
                                                               query=self.query,
                                                               page_size=stride,
                                                               page_offset=offset)
