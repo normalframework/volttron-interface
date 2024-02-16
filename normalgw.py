@@ -118,7 +118,7 @@ class Interface(BaseInterface):
         # the command service now provides type conversions and in the
         # future will let this work with multiple HPLs.
         res = requests.post(self.nfurl + "/api/v2/command/read", json={
-            "writes": [
+            "reads": [
                 {
                     "point": {
                         "uuid": register.uuid,
