@@ -4,7 +4,6 @@ Volttron interface code needed to use NF with the Volttron Platform Driver
 
 ## Installation
 
-
 1. Copy the `normalgw.py` interface into the directory of your platform driver agent, `$VOLTTRON_HOME/services/core/PlatformDriverAgent/platform_driver/interfaces/`
 3. Edit the config file, `normalgw.config` to refer to the gRPC locations of your NF installation, and have the desired priority level.
 4. If not already installed, make sure the platform.driver agent is installed.
