@@ -88,6 +88,9 @@ class Interface(BaseInterface):
                     "page_size": stride,
                     "page_offset": offset,
                     "stride": stride,
+                    "masks": {
+                        "fieldExcludeMask": ["hpldata"],
+                    }
                 })
                 points = res.json()
                 offset += len(points['points'])
