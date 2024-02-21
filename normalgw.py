@@ -74,7 +74,7 @@ class Interface(BaseInterface):
                 }
             }
         })
-        self.layer = config_dict.get("layer", "")
+        self.layer = config_dict.get("layer", "default")
         self.nameFormat = config_dict.get("topic_name_format", DEFAULT_NAME_FORMAT_STRING)
         self.written_points = set([])
 
@@ -84,12 +84,12 @@ class Interface(BaseInterface):
                 # TODO: rename hpl -> layer when we update the normalgw proto files
                 res = requests.post(self.nfurl + "/api/v1/point/query", json={
                     "layer": self.layer,
-                    "query": "SimpleServer",
                     "page_size": stride,
                     "page_offset": offset,
                     "stride": stride,
+                    "structured_query": self.query,
                     "masks": {
-                        "fieldExcludeMask": ["hpldata"],
+                        "field_exclude_mask": ["hpldata"],
                     }
                 })
                 points = res.json()
